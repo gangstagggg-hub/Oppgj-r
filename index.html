@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Oppgjør</title>
+<meta name="description" content="Hold styr på hvem som skylder deg, og hvem du skylder.">
+
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#132019">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Oppgjør">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <header class="topbar">
+    <div class="logo">Oppgjør<span>.</span></div>
+    <div class="topbar-right">
+      <div class="currency-control">
+        <button class="currency-btn" id="currencyBtn" aria-haspopup="listbox" aria-expanded="false">
+          <span id="currencyBtnLabel">kr NOK</span>
+          <svg viewBox="0 0 12 8" fill="none"><path d="M1 1.5L6 6.5L11 1.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <div class="currency-menu" id="currencyMenu" role="listbox">
+          <button class="currency-option" data-code="USD" role="option">
+            <span class="cur-left"><span class="cur-symbol">$</span><span>Amerikanske dollar</span></span>
+            <span class="cur-right"><span class="cur-code">USD</span><span class="cur-check">✓</span></span>
+          </button>
+          <button class="currency-option" data-code="AUD" role="option">
+            <span class="cur-left"><span class="cur-symbol">A$</span><span>Australske dollar</span></span>
+            <span class="cur-right"><span class="cur-code">AUD</span><span class="cur-check">✓</span></span>
+          </button>
+          <button class="currency-option" data-code="BRL" role="option">
+            <span class="cur-left"><span class="cur-symbol">R$</span><span>Brasilianske real</span></span>
+            <span class="cur-right"><span class="cur-code">BRL</span><span class="cur-check">✓</span></span>
+          </button>
+          <button class="currency-option" data-code="GBP" role="option">
+            <span class="cur-left"><span class="cur-symbol">£</span><span>Britiske pund</span></span>
+            <span class="cur-right"><span class="cur-code">GBP</span><span class="cur-check">✓</span></span>
+          </button>
+          <button class="currency-option" data-code="DKK" role="option">
+            <span class="cur-left"><span class="cur-symbol">kr</span><span>Danske kroner</span></span>
+            <span class="cur-right"><span class="cur-code">DKK</span><span class="cur-check">✓</span></span>
+          </button>
+          <button class="currency-option" data-code="EUR" role="option">
+            <span class="cur-left"><span class="cur-symbol">€</span><span>Euro</span></span>
+            <span class="cur-right"><span class="cur-code">EUR</span><span class="cur-check">✓</span></span>
+          </button>
+          <button class="currency-option" data-code="PHP" role="option">
+            <span class="cur-left"><span class="cur-symbol">₱</span><span>Filippinske peso</span></span>
+            <span class="cur-right"><span class="cur-code">PHP</span><span class="cur-check">✓</span></span>
+          </button>
+          <button class="currency-option" data-code="HKD" role="option">
+            <span class="cur-left"><span class="cur-symbol">HK$</span><span>Hongkong-dollar</span></span>
+            <span class="cur-right"><span class="cur-code">HKD</span><span class="cur-check">✓</span></span>
+          </button>
+          <button class="currency-option" data-code="INR" role="option">
+            <span class="cur-left"><span class="cur-symbol">₹</span><span>Indiske rupi</span></span>
+            <span class="cur-right"><span class="cur-code">INR</span><span class="cur-check">✓</span></span>
+          </button>
+          <button class="currency-option" data-code="IDR" role="option">
+            <span class="cur-left"><span class="cur-symbol">Rp</span><span>Indonesiske rupiah</span></span>
+            <span class="cur-right"><span class="cur-code">IDR</span><span class="cur-check">✓</span></span>
+          </button>
+          <button class="currency-option" data-code="ISK" role="option">
+            <span class="cur-left"><span class="cur-symbol">kr</span><span>Islandske kroner</span></span>
+            <span class="cur-right"><span class="cur-code">ISK</span><span class="cur-check">✓</span></span>
+          </button>
+          <button class="currency-option" data-code="ILS" role="option">
+            <span class="cur-left"><span class="cur-symbol">₪</span><span>Israelske shekel</span></span>
+            <span class="cur-right"><span class="cur-code">ILS</span><span class="cur-check">✓</span></span>
+          </button>
+          <button class="currency-option" data-code="JPY" role="option">
+            <span class="cur-left"><span class="cur-symbol">¥</span><span>Japanske yen</span></span>
+            <span class="cur-right"><span class="cur-code">JPY</span><span class="cur-check">✓</span></span>
+          </button>
+          <button class="currency-option" data-code="CAD" role="option">
+            <span class="cur-left"><span class="cur-symbol">C$</span><span>Kanadiske dollar</span></span>
+            <span class="cur-right"><span class="cur-code">CAD</span><span class="cur-check">✓</span></span>
+          </button>
+          <button class="currency-option" data-code="CNY" role="option">
+            <span class="cur-left"><span class="cur-symbol">¥</span><span>Kinesiske yuan</span></span>
+            <span class="cur-right"><span class="cur-code">CNY</span><span class="cur-check">✓</span></span>
+          </button>
+          <button class="currency-option" data-code="MYR" role="option">
+            <span class="cur-left"><span class="cur-symbol">RM</span><span>Malaysiske ringgit</span></span>
+            <span class="cur-right"><span class="cur-code">MYR</span><span class="cur-check">✓</span></span>
+          </button>
+          <button class="currency-option" data-code="MXN" role="option">
+            <span class="cur-left"><span class="cur-symbol">MX$</span><span>Meksikanske peso</span></span>
+            <span class="cur-right"><span class="cur-code">MXN</span><span class="cur-check">✓</span></span>
+          </button>
+          <button class="currency-option" data-code="NZD" role="option">
+            <span class="cur-left"><span class="cur-symbol">NZ$</span><span>New Zealand-dollar</span></span>
+            <span class="cur-right"><span class="cur-code">NZD</span><span class="cur-check">✓</span></span>
+          </button>
+          <button class="currency-option selected" data-code="NOK" role="option">
+            <span class="cur-left"><span class="cur-symbol">kr</span><span>Norske kroner</span></span>
+            <span class="cur-right"><span class="cur-code">NOK</span><span class="cur-check">✓</span></span>
+          </button>
+          <button class="currency-option" data-code="PLN" role="option">
+            <span class="cur-left"><span class="cur-symbol">zł</span><span>Polske zloty</span></span>
+            <span class="cur-right"><span class="cur-code">PLN</span><span class="cur-check">✓</span></span>
+          </button>
+          <button class="currency-option" data-code="RON" role="option">
+            <span class="cur-left"><span class="cur-symbol">lei</span><span>Rumenske leu</span></span>
+            <span class="cur-right"><span class="cur-code">RON</span><span class="cur-check">✓</span></span>
+          </button>
+          <button class="currency-option" data-code="RUB" role="option">
+            <span class="cur-left"><span class="cur-symbol">₽</span><span>Russiske rubler</span></span>
+            <span class="cur-right"><span class="cur-code">RUB</span><span class="cur-check">✓</span></span>
+          </button>
+          <button class="currency-option" data-code="SGD" role="option">
+            <span class="cur-left"><span class="cur-symbol">S$</span><span>Singapore-dollar</span></span>
+            <span class="cur-right"><span class="cur-code">SGD</span><span class="cur-check">✓</span></span>
+          </button>
+          <button class="currency-option" data-code="CHF" role="option">
+            <span class="cur-left"><span class="cur-symbol">CHF</span><span>Sveitsiske franc</span></span>
+            <span class="cur-right"><span class="cur-code">CHF</span><span class="cur-check">✓</span></span>
+          </button>
+          <button class="currency-option" data-code="SEK" role="option">
+            <span class="cur-left"><span class="cur-symbol">kr</span><span>Svenske kroner</span></span>
+            <span class="cur-right"><span class="cur-code">SEK</span><span class="cur-check">✓</span></span>
+          </button>
+          <button class="currency-option" data-code="ZAR" role="option">
+            <span class="cur-left"><span class="cur-symbol">R</span><span>Sørafrikanske rand</span></span>
+            <span class="cur-right"><span class="cur-code">ZAR</span><span class="cur-check">✓</span></span>
+          </button>
+          <button class="currency-option" data-code="KRW" role="option">
+            <span class="cur-left"><span class="cur-symbol">₩</span><span>Sørkoreanske won</span></span>
+            <span class="cur-right"><span class="cur-code">KRW</span><span class="cur-check">✓</span></span>
+          </button>
+          <button class="currency-option" data-code="THB" role="option">
+            <span class="cur-left"><span class="cur-symbol">฿</span><span>Thailandske baht</span></span>
+            <span class="cur-right"><span class="cur-code">THB</span><span class="cur-check">✓</span></span>
+          </button>
+          <button class="currency-option" data-code="CZK" role="option">
+            <span class="cur-left"><span class="cur-symbol">Kč</span><span>Tsjekkiske koruna</span></span>
+            <span class="cur-right"><span class="cur-code">CZK</span><span class="cur-check">✓</span></span>
+          </button>
+          <button class="currency-option" data-code="TRY" role="option">
+            <span class="cur-left"><span class="cur-symbol">₺</span><span>Tyrkiske lira</span></span>
+            <span class="cur-right"><span class="cur-code">TRY</span><span class="cur-check">✓</span></span>
+          </button>
+          <button class="currency-option" data-code="HUF" role="option">
+            <span class="cur-left"><span class="cur-symbol">Ft</span><span>Ungarske forint</span></span>
+            <span class="cur-right"><span class="cur-code">HUF</span><span class="cur-check">✓</span></span>
+          </button>
+          <button class="currency-option" data-code="VND" role="option">
+            <span class="cur-left"><span class="cur-symbol">₫</span><span>Vietnamesiske dong</span></span>
+            <span class="cur-right"><span class="cur-code">VND</span><span class="cur-check">✓</span></span>
+          </button>
+        </div>
+      </div>
+      <div class="avatar-me">DU</div>
+    </div>
+  </header>
+
+  <section class="hero">
+    <div class="bubbles-wrap">
+      <div class="pan left">
+        <div class="pan-dish">
+          <div class="pan-amount" id="creditBubble" data-amount="0">0 kr</div>
+          <div class="pan-label">de skylder deg</div>
+        </div>
+      </div>
+      <div class="pan right">
+        <div class="pan-dish">
+          <div class="pan-amount" id="debitBubble" data-amount="0">0 kr</div>
+          <div class="pan-label">du skylder dem</div>
+        </div>
+      </div>
+    </div>
+
+    <p class="net-readout">Netto: du står <b id="netAmount" data-net-amount="0">+0 kr</b></p>
+  </section>
+
+  <section class="ledger">
+    <div class="columns">
+
+      <div>
+        <div class="col-head">
+          <div class="col-title">De skylder deg</div>
+          <div class="col-total credit" id="creditTotal" data-amount="0">0 kr</div>
+        </div>
+        <div id="creditList"></div>
+      </div>
+
+      <div>
+        <div class="col-head">
+          <div class="col-title">Du skylder</div>
+          <div class="col-total debit" id="debitTotal" data-amount="0">0 kr</div>
+        </div>
+        <div id="debitList"></div>
+      </div>
+
+    </div>
+  </section>
+
+  <button class="fab" id="fabOpen">+ Ny gjeld</button>
+
+  <div class="overlay" id="overlay"></div>
+
+  <div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
+    <div class="sheet-handle-zone" id="dragZone">
+      <div class="sheet-handle"></div>
+    </div>
+    <div class="sheet-body">
+      <div class="sheet-title" id="sheetTitle">Registrer ny gjeld</div>
+
+      <div class="toggle" id="toggle">
+        <div class="toggle-slider" id="toggleSlider"></div>
+        <button type="button" class="active" id="btnDebit">Du skylder</button>
+        <button type="button" id="btnCredit">Skylder deg</button>
+      </div>
+
+      <div class="field">
+        <label for="fName">Person</label>
+        <input type="text" id="fName" placeholder="F.eks. Kari Nordmann">
+      </div>
+
+      <div class="field amount-field">
+        <label for="fAmount">Beløp</label>
+        <input type="text" id="fAmount" placeholder="0" inputmode="numeric" pattern="[0-9]*">
+        <span class="amount-suffix" id="amountSuffix">kr</span>
+      </div>
+
+      <div class="field">
+        <label for="fDesc">Hva gjelder det</label>
+        <input type="text" id="fDesc" placeholder="F.eks. Middag lørdag">
+      </div>
+
+      <button class="sheet-submit" id="sheetSubmit">Legg til</button>
+    </div>
+  </div>
+
+  <div class="install-banner" id="installBanner">
+    <div class="install-icon"><img src="icons/icon-192.png" alt=""></div>
+    <div class="install-text">
+      <div class="install-title">Legg Oppgjør på hjemskjermen</div>
+      <div class="install-sub" id="installSub">Bruk appen som en vanlig app, også uten nett.</div>
+    </div>
+    <button class="install-btn" id="installBtn">Installer</button>
+    <button class="install-dismiss" id="installDismiss" aria-label="Lukk">✕</button>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
