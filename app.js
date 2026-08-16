@@ -6,6 +6,11 @@
 
 const STORAGE_KEY = 'oppgjor:v1';
 
+function cryptoId(){
+  if(window.crypto && window.crypto.randomUUID) return window.crypto.randomUUID();
+  return 'id-' + Date.now() + '-' + Math.random().toString(16).slice(2);
+}
+
 const currencies = {
   USD: { symbol:'$',   position:'before' },
   AUD: { symbol:'A$',  position:'before' },
@@ -43,23 +48,6 @@ const currencies = {
 
 /* ---------- state ---------- */
 
-function seedEntries(){
-  const now = Date.now();
-  const day = 24 * 60 * 60 * 1000;
-  return [
-    { id: cryptoId(), mode:'credit', name:'Kari Nordmann', desc:'Bursdagsmiddag', amount:450, createdAt: now - 3*day },
-    { id: cryptoId(), mode:'credit', name:'Ola Hansen',    desc:'Kinobilletter',  amount:180, createdAt: now - 7*day },
-    { id: cryptoId(), mode:'credit', name:'Mari Berg',     desc:'Strøm januar',   amount:620, createdAt: now - 14*day },
-    { id: cryptoId(), mode:'debit',  name:'Per Olsen',     desc:'Hyttetur, bensin', amount:300, createdAt: now - 5*day },
-    { id: cryptoId(), mode:'debit',  name:'Lisa Dahl',     desc:'Take-away torsdag', amount:210, createdAt: now - 7*day }
-  ];
-}
-
-function cryptoId(){
-  if(window.crypto && window.crypto.randomUUID) return window.crypto.randomUUID();
-  return 'id-' + Date.now() + '-' + Math.random().toString(16).slice(2);
-}
-
 function loadState(){
   try{
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -68,7 +56,7 @@ function loadState(){
       if(parsed && Array.isArray(parsed.entries)) return parsed;
     }
   }catch(e){ /* korrupt lagring — start på nytt */ }
-  const fresh = { currency:'NOK', entries: seedEntries() };
+  const fresh = { currency:'NOK', entries: [] };
   saveState(fresh);
   return fresh;
 }
@@ -162,18 +150,124 @@ function renderList(containerId, entries, mode, emptyText){
   }
 
   entries.forEach(entry => {
-    const row = document.createElement('div');
-    row.className = 'entry ' + mode;
-    row.innerHTML = `
-      <div class="entry-avatar">${escapeHtml(initialsFromName(entry.name))}</div>
-      <div class="entry-body">
-        <div class="entry-name">${escapeHtml(entry.name)}</div>
-        <div class="entry-meta">${escapeHtml(entry.desc || 'Gjeld')} · ${relativeTime(entry.createdAt)}</div>
+    const wrap = document.createElement('div');
+    wrap.className = 'entry-wrap';
+    wrap.dataset.id = entry.id;
+
+    wrap.innerHTML = `
+      <div class="entry-delete-bg">
+        <button class="entry-delete-btn" type="button">Slett</button>
       </div>
-      <div class="entry-amount" data-amount="${entry.amount}">${formatAmount(entry.amount, state.currency)}</div>
+      <div class="entry ${mode}" data-open="false">
+        <div class="entry-avatar">${escapeHtml(initialsFromName(entry.name))}</div>
+        <div class="entry-body">
+          <div class="entry-name">${escapeHtml(entry.name)}</div>
+          <div class="entry-meta">${escapeHtml(entry.desc || 'Gjeld')} · ${relativeTime(entry.createdAt)}</div>
+        </div>
+        <div class="entry-amount" data-amount="${entry.amount}">${formatAmount(entry.amount, state.currency)}</div>
+      </div>
     `;
-    container.appendChild(row);
+
+    container.appendChild(wrap);
+    attachEntryInteraction(wrap, entry);
   });
+}
+
+/* ---------- sveip for å slette / dobbelttrykk for å legge til ---------- */
+
+const SWIPE_OPEN_X = -84;
+let openEntryWrap = null;
+
+function closeOpenEntry(){
+  if(openEntryWrap){
+    const row = openEntryWrap.querySelector('.entry');
+    row.style.transform = 'translateX(0px)';
+    row.dataset.open = 'false';
+    openEntryWrap = null;
+  }
+}
+
+function attachEntryInteraction(wrap, entry){
+  const row = wrap.querySelector('.entry');
+  const deleteBtn = wrap.querySelector('.entry-delete-btn');
+
+  let startX = 0, startY = 0, baseX = 0, dragging = false, isTap = true;
+  let lastTapTime = 0;
+
+  row.addEventListener('pointerdown', (e) => {
+    if(openEntryWrap && openEntryWrap !== wrap) closeOpenEntry();
+    startX = e.clientX;
+    startY = e.clientY;
+    baseX = row.dataset.open === 'true' ? SWIPE_OPEN_X : 0;
+    dragging = false;
+    isTap = true;
+    row.style.transition = 'none';
+    row.setPointerCapture(e.pointerId);
+  });
+
+  row.addEventListener('pointermove', (e) => {
+    const dx = e.clientX - startX;
+    const dy = e.clientY - startY;
+    if(!dragging && Math.abs(dx) > 6 && Math.abs(dx) > Math.abs(dy)){
+      dragging = true;
+      isTap = false;
+    }
+    if(dragging){
+      const x = Math.min(0, Math.max(SWIPE_OPEN_X, baseX + dx));
+      row.style.transform = `translateX(${x}px)`;
+    }
+  });
+
+  function finishDrag(){
+    row.style.transition = '';
+    if(dragging){
+      const currentX = new DOMMatrix(getComputedStyle(row).transform).m41;
+      if(currentX < SWIPE_OPEN_X / 2){
+        row.style.transform = `translateX(${SWIPE_OPEN_X}px)`;
+        row.dataset.open = 'true';
+        openEntryWrap = wrap;
+      } else {
+        row.style.transform = 'translateX(0px)';
+        row.dataset.open = 'false';
+        if(openEntryWrap === wrap) openEntryWrap = null;
+      }
+      dragging = false;
+      return;
+    }
+
+    if(!isTap) return;
+
+    if(row.dataset.open === 'true'){
+      closeOpenEntry();
+      return;
+    }
+
+    const now = Date.now();
+    if(now - lastTapTime < 320){
+      lastTapTime = 0;
+      openSheetForEntry(entry);
+    } else {
+      lastTapTime = now;
+    }
+  }
+
+  row.addEventListener('pointerup', finishDrag);
+  row.addEventListener('pointercancel', finishDrag);
+
+  deleteBtn.addEventListener('click', () => {
+    state.entries = state.entries.filter(e => e.id !== entry.id);
+    saveState(state);
+    if(openEntryWrap === wrap) openEntryWrap = null;
+    render();
+  });
+}
+
+function openSheetForEntry(entry){
+  resetForm();
+  fName.value = entry.name;
+  setMode(entry.mode);
+  openSheet();
+  fAmount.focus();
 }
 
 /* ---------- valutavelger ---------- */
@@ -217,6 +311,12 @@ currencyOptions.forEach(opt => {
 document.addEventListener('click', (e) => {
   if(!currencyMenu.contains(e.target) && e.target !== currencyBtn){
     toggleCurrencyMenu(false);
+  }
+});
+
+document.addEventListener('pointerdown', (e) => {
+  if(openEntryWrap && !openEntryWrap.contains(e.target)){
+    closeOpenEntry();
   }
 });
 

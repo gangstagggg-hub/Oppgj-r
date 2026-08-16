@@ -233,14 +233,43 @@
   .col-total.credit{ color:var(--moss-deep); }
   .col-total.debit{ color:var(--rust-deep); }
 
+  .entry-wrap{
+    position:relative;
+    overflow:hidden;
+    border-bottom:1px solid rgba(29,42,34,0.12);
+  }
+  .entry-wrap:last-child{ border-bottom:none; }
+
+  .entry-delete-bg{
+    position:absolute;
+    inset:0;
+    display:flex;
+    align-items:stretch;
+    justify-content:flex-end;
+  }
+  .entry-delete-btn{
+    width:84px;
+    border:none;
+    background:var(--rust-deep);
+    color:var(--paper);
+    font-family:'Inter',sans-serif;
+    font-weight:600;
+    font-size:13px;
+    cursor:pointer;
+  }
+
   .entry{
+    position:relative;
     display:flex;
     align-items:center;
     gap:14px;
     padding:16px 0;
-    border-bottom:1px solid rgba(29,42,34,0.12);
+    background:var(--paper);
+    transform:translateX(0px);
+    transition:transform .25s ease;
+    touch-action:pan-y;
+    user-select:none;
   }
-  .entry:last-child{ border-bottom:none; }
   .entry-avatar{
     flex-shrink:0;
     width:42px;height:42px;
