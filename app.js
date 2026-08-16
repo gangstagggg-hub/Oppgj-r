@@ -73,8 +73,14 @@ let state = loadState();
 
 function formatAmount(value, code){
   const cur = currencies[code] || currencies.NOK;
-  const num = Math.round(Math.abs(value)).toLocaleString('nb-NO');
+  const num = Number(Math.abs(value)).toLocaleString('nb-NO', { maximumFractionDigits: 2 });
   return cur.position === 'before' ? cur.symbol + num : num + ' ' + cur.symbol;
+}
+
+function parseAmountInput(str){
+  if(!str) return NaN;
+  const normalized = str.trim().replace(',', '.');
+  return parseFloat(normalized);
 }
 
 function initialsFromName(name){
@@ -107,16 +113,33 @@ function escapeHtml(str){
 
 /* ---------- rendering ---------- */
 
-function render(){
-  const credit = state.entries.filter(e => e.mode === 'credit').sort((a,b) => b.createdAt - a.createdAt);
-  const debit  = state.entries.filter(e => e.mode === 'debit').sort((a,b) => b.createdAt - a.createdAt);
+function groupByName(entries){
+  const map = new Map();
+  entries.forEach(e => {
+    const key = e.name.trim().toLowerCase();
+    if(!map.has(key)){
+      map.set(key, { key, name: e.name.trim(), mode: e.mode, total: 0, items: [] });
+    }
+    const g = map.get(key);
+    g.total += e.amount;
+    g.items.push(e);
+  });
+  const groups = Array.from(map.values());
+  groups.forEach(g => g.items.sort((a,b) => b.createdAt - a.createdAt));
+  groups.sort((a,b) => b.items[0].createdAt - a.items[0].createdAt);
+  return groups;
+}
 
-  const creditTotal = credit.reduce((sum, e) => sum + e.amount, 0);
-  const debitTotal  = debit.reduce((sum, e) => sum + e.amount, 0);
+function render(){
+  const creditEntries = state.entries.filter(e => e.mode === 'credit');
+  const debitEntries  = state.entries.filter(e => e.mode === 'debit');
+
+  const creditTotal = creditEntries.reduce((sum, e) => sum + e.amount, 0);
+  const debitTotal  = debitEntries.reduce((sum, e) => sum + e.amount, 0);
   const net = creditTotal - debitTotal;
 
-  renderList('creditList', credit, 'credit', 'Ingen skylder deg noe akkurat nå.');
-  renderList('debitList', debit, 'debit', 'Du skylder ingen noe. Bra jobbet.');
+  renderGroupList('creditList', groupByName(creditEntries), 'credit', 'Ingen skylder deg noe akkurat nå.');
+  renderGroupList('debitList', groupByName(debitEntries), 'debit', 'Du skylder ingen noe. Bra jobbet.');
 
   setAmount('creditBubble', creditTotal);
   setAmount('debitBubble', debitTotal);
@@ -129,6 +152,16 @@ function render(){
   netEl.textContent = sign + formatAmount(net, state.currency);
 
   updateCurrencyChrome();
+
+  /* hold sveip-tilstand og evt. åpent bunnark i sync med ny data */
+  if(sheetLockedKey){
+    const stillExists = state.entries.some(e => e.name.trim().toLowerCase() === sheetLockedKey && e.mode === sheetLockedMode);
+    if(stillExists){
+      renderBreakdown(sheetLockedKey, sheetLockedMode);
+    } else {
+      closeSheet();
+    }
+  }
 }
 
 function setAmount(id, value){
@@ -137,11 +170,11 @@ function setAmount(id, value){
   el.textContent = formatAmount(value, state.currency);
 }
 
-function renderList(containerId, entries, mode, emptyText){
+function renderGroupList(containerId, groups, mode, emptyText){
   const container = document.getElementById(containerId);
   container.innerHTML = '';
 
-  if(entries.length === 0){
+  if(groups.length === 0){
     const hint = document.createElement('div');
     hint.className = 'col-empty-hint';
     hint.textContent = emptyText;
@@ -149,27 +182,31 @@ function renderList(containerId, entries, mode, emptyText){
     return;
   }
 
-  entries.forEach(entry => {
+  groups.forEach(group => {
     const wrap = document.createElement('div');
     wrap.className = 'entry-wrap';
-    wrap.dataset.id = entry.id;
+    wrap.dataset.key = group.key;
+
+    const metaText = group.items.length > 1
+      ? `${group.items.length} poster · sist ${relativeTime(group.items[0].createdAt)}`
+      : `${escapeHtml(group.items[0].desc || 'Gjeld')} · ${relativeTime(group.items[0].createdAt)}`;
 
     wrap.innerHTML = `
       <div class="entry-delete-bg">
         <button class="entry-delete-btn" type="button">Slett</button>
       </div>
       <div class="entry ${mode}" data-open="false">
-        <div class="entry-avatar">${escapeHtml(initialsFromName(entry.name))}</div>
+        <div class="entry-avatar">${escapeHtml(initialsFromName(group.name))}</div>
         <div class="entry-body">
-          <div class="entry-name">${escapeHtml(entry.name)}</div>
-          <div class="entry-meta">${escapeHtml(entry.desc || 'Gjeld')} · ${relativeTime(entry.createdAt)}</div>
+          <div class="entry-name">${escapeHtml(group.name)}</div>
+          <div class="entry-meta">${metaText}</div>
         </div>
-        <div class="entry-amount" data-amount="${entry.amount}">${formatAmount(entry.amount, state.currency)}</div>
+        <div class="entry-amount" data-amount="${group.total}">${formatAmount(group.total, state.currency)}</div>
       </div>
     `;
 
     container.appendChild(wrap);
-    attachEntryInteraction(wrap, entry);
+    attachEntryInteraction(wrap, group);
   });
 }
 
@@ -187,7 +224,7 @@ function closeOpenEntry(){
   }
 }
 
-function attachEntryInteraction(wrap, entry){
+function attachEntryInteraction(wrap, group){
   const row = wrap.querySelector('.entry');
   const deleteBtn = wrap.querySelector('.entry-delete-btn');
 
@@ -245,7 +282,7 @@ function attachEntryInteraction(wrap, entry){
     const now = Date.now();
     if(now - lastTapTime < 320){
       lastTapTime = 0;
-      openSheetForEntry(entry);
+      openSheetForGroup(group);
     } else {
       lastTapTime = now;
     }
@@ -255,19 +292,87 @@ function attachEntryInteraction(wrap, entry){
   row.addEventListener('pointercancel', finishDrag);
 
   deleteBtn.addEventListener('click', () => {
-    state.entries = state.entries.filter(e => e.id !== entry.id);
+    state.entries = state.entries.filter(e => !(e.name.trim().toLowerCase() === group.key && e.mode === group.mode));
     saveState(state);
     if(openEntryWrap === wrap) openEntryWrap = null;
     render();
   });
 }
 
-function openSheetForEntry(entry){
-  resetForm();
-  fName.value = entry.name;
-  setMode(entry.mode);
+/* ---------- bunnark: låst "legg til på person" ---------- */
+
+let sheetLockedKey = null;
+let sheetLockedMode = null;
+let sheetLockedName = null;
+
+function renderBreakdown(key, entryMode){
+  const items = state.entries
+    .filter(e => e.name.trim().toLowerCase() === key && e.mode === entryMode)
+    .sort((a,b) => b.createdAt - a.createdAt);
+
+  const container = document.getElementById('sheetBreakdown');
+
+  if(items.length === 0){
+    container.innerHTML = '';
+    return;
+  }
+
+  const rows = items.map(item => `
+    <div class="breakdown-row" data-id="${item.id}">
+      <div class="breakdown-info">
+        <div class="breakdown-desc">${escapeHtml(item.desc || 'Gjeld')}</div>
+        <div class="breakdown-date">${relativeTime(item.createdAt)}</div>
+      </div>
+      <div class="breakdown-amount">${formatAmount(item.amount, state.currency)}</div>
+      <button class="breakdown-delete" type="button" data-id="${item.id}" aria-label="Slett post">×</button>
+    </div>
+  `).join('');
+
+  container.innerHTML = `
+    <div class="breakdown-label">${entryMode === 'credit' ? 'Skylder deg' : 'Du skylder'} — tidligere beløp</div>
+    <div class="breakdown-list">${rows}</div>
+  `;
+
+  container.querySelectorAll('.breakdown-delete').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = btn.getAttribute('data-id');
+      state.entries = state.entries.filter(e => e.id !== id);
+      saveState(state);
+      render();
+    });
+  });
+}
+
+function openSheetForGroup(group){
+  sheetLockedKey = group.key;
+  sheetLockedMode = group.mode;
+  sheetLockedName = group.name;
+
+  fName.value = group.name;
+  fName.readOnly = true;
+  fAmount.value = '';
+  fDesc.value = '';
+
+  setMode(group.mode);
+  toggleLocked = true;
+  toggle.classList.add('locked');
+
+  sheetTitle.textContent = group.name;
+  renderBreakdown(sheetLockedKey, sheetLockedMode);
+
   openSheet();
   fAmount.focus();
+}
+
+function unlockSheet(){
+  sheetLockedKey = null;
+  sheetLockedMode = null;
+  sheetLockedName = null;
+  fName.readOnly = false;
+  toggleLocked = false;
+  toggle.classList.remove('locked');
+  sheetTitle.textContent = 'Registrer ny gjeld';
+  document.getElementById('sheetBreakdown').innerHTML = '';
 }
 
 /* ---------- valutavelger ---------- */
@@ -325,6 +430,7 @@ document.addEventListener('pointerdown', (e) => {
 const fab = document.getElementById('fabOpen');
 const overlay = document.getElementById('overlay');
 const sheet = document.getElementById('sheet');
+const sheetTitle = document.getElementById('sheetTitle');
 const dragZone = document.getElementById('dragZone');
 const btnDebit = document.getElementById('btnDebit');
 const btnCredit = document.getElementById('btnCredit');
@@ -341,6 +447,7 @@ function closeSheet(){
   overlay.classList.remove('open');
   sheet.classList.remove('open');
   sheet.style.transform = '';
+  unlockSheet();
 }
 function resetForm(){
   fName.value = '';
@@ -349,12 +456,13 @@ function resetForm(){
   setMode('debit');
 }
 
-fab.addEventListener('click', () => { resetForm(); openSheet(); });
+fab.addEventListener('click', () => { unlockSheet(); resetForm(); openSheet(); });
 overlay.addEventListener('click', closeSheet);
 
 const toggle = document.getElementById('toggle');
 const toggleSlider = document.getElementById('toggleSlider');
 let mode = 'debit';
+let toggleLocked = false;
 
 function setMode(newMode){
   mode = newMode;
@@ -364,8 +472,8 @@ function setMode(newMode){
   btnCredit.classList.toggle('active', mode === 'credit');
 }
 
-btnDebit.addEventListener('click', () => setMode('debit'));
-btnCredit.addEventListener('click', () => setMode('credit'));
+btnDebit.addEventListener('click', () => { if(!toggleLocked) setMode('debit'); });
+btnCredit.addEventListener('click', () => { if(!toggleLocked) setMode('credit'); });
 
 /* sveip mellom "du skylder" og "skylder deg" */
 let toggleDragging = false;
@@ -373,6 +481,7 @@ let toggleStartX = 0;
 let toggleHalfWidth = 0;
 
 toggle.addEventListener('pointerdown', (e) => {
+  if(toggleLocked) return;
   toggleDragging = true;
   toggleStartX = e.clientX;
   toggleHalfWidth = toggle.offsetWidth / 2;
@@ -437,12 +546,28 @@ function endDrag(){
 dragZone.addEventListener('pointerup', endDrag);
 dragZone.addEventListener('pointercancel', endDrag);
 
-/* legg til ny gjeld */
-sheetSubmit.addEventListener('click', () => {
-  const name = fName.value.trim();
-  const amount = parseInt(fAmount.value.replace(/\D/g, ''), 10);
+/* tillat komma eller punktum som desimalskilletegn i beløpsfeltet */
+fAmount.addEventListener('input', () => {
+  let v = fAmount.value;
+  v = v.replace(/\./g, ',');
+  v = v.replace(/[^0-9,]/g, '');
+  const firstComma = v.indexOf(',');
+  if(firstComma !== -1){
+    v = v.slice(0, firstComma + 1) + v.slice(firstComma + 1).replace(/,/g, '');
+    const parts = v.split(',');
+    if(parts[1] && parts[1].length > 2) parts[1] = parts[1].slice(0, 2);
+    v = parts[0] + ',' + (parts[1] !== undefined ? parts[1] : '');
+  }
+  fAmount.value = v;
+});
 
-  if(!name){
+/* legg til gjeld */
+sheetSubmit.addEventListener('click', () => {
+  const name = sheetLockedName || fName.value.trim();
+  const entryMode = sheetLockedKey ? sheetLockedMode : mode;
+  const amount = parseAmountInput(fAmount.value);
+
+  if(!sheetLockedKey && !name){
     fName.focus();
     return;
   }
@@ -453,7 +578,7 @@ sheetSubmit.addEventListener('click', () => {
 
   state.entries.push({
     id: cryptoId(),
-    mode,
+    mode: entryMode,
     name,
     desc: fDesc.value.trim(),
     amount,
@@ -461,8 +586,17 @@ sheetSubmit.addEventListener('click', () => {
   });
   saveState(state);
   render();
-  closeSheet();
-  resetForm();
+
+  if(sheetLockedKey){
+    /* behold arket åpent slik at flere beløp kan legges til fortløpende */
+    fAmount.value = '';
+    fDesc.value = '';
+    renderBreakdown(sheetLockedKey, sheetLockedMode);
+    fAmount.focus();
+  } else {
+    closeSheet();
+    resetForm();
+  }
 });
 
 /* ---------- PWA: installasjon ---------- */

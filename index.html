@@ -215,6 +215,8 @@
     <div class="sheet-body">
       <div class="sheet-title" id="sheetTitle">Registrer ny gjeld</div>
 
+      <div class="sheet-breakdown" id="sheetBreakdown"></div>
+
       <div class="toggle" id="toggle">
         <div class="toggle-slider" id="toggleSlider"></div>
         <button type="button" class="active" id="btnDebit">Du skylder</button>
@@ -228,7 +230,7 @@
 
       <div class="field amount-field">
         <label for="fAmount">Beløp</label>
-        <input type="text" id="fAmount" placeholder="0" inputmode="numeric" pattern="[0-9]*">
+        <input type="text" id="fAmount" placeholder="0" inputmode="decimal">
         <span class="amount-suffix" id="amountSuffix">kr</span>
       </div>
 
