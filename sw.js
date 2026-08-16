@@ -1,4 +1,4 @@
-const CACHE_NAME = 'oppgjor-v2';
+const CACHE_NAME = 'oppgjor-v3';
 const CORE_ASSETS = [
   './',
   './index.html',
