@@ -37,8 +37,10 @@ jobs:
           distribution: temurin
           java-version: "17"
 
-      - name: Sett opp Android SDK
-        uses: android-actions/setup-android@v3
+      - name: Godta Android SDK-lisenser
+        # Android SDK ligger ferdig installert på GitHub-maskinen. Lisensene må være godtatt
+        # for at Gradle kan hente manglende pakker selv.
+        run: yes | sdkmanager --licenses > /dev/null 2>&1 || true
 
       - name: Sett opp Gradle
         uses: gradle/actions/setup-gradle@v4
