@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Oppgjør · Ønskeliste</title>
+<meta name="description" content="Planlegg hva du vil kjøpe, og se hva pengene rekker til.">
+
+<meta name="theme-color" content="#132019">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Oppgjør">
+
+<link rel="stylesheet" href="fonts.css">
+<link rel="stylesheet" href="onskeliste.css">
+</head>
+<body>
+
+  <header class="topbar">
+    <div class="logo">Oppgjør<span>.</span></div>
+  </header>
+
+  <nav class="subnav" aria-label="Sider">
+    <a class="tab" href="index.html">Gjeld</a>
+    <a class="tab active" href="onskeliste.html" aria-current="page">Ønskeliste</a>
+  </nav>
+
+  <section class="hero">
+    <div class="boxes">
+      <div class="box" data-scenario="cash" role="button" tabindex="0" aria-pressed="false">
+        <div class="box-label">Jeg har nå</div>
+        <div class="box-amount">0 kr</div>
+        <div class="box-sub"><button type="button" class="box-edit" id="cashEdit">Endre</button></div>
+      </div>
+      <div class="box" data-scenario="credit" role="button" tabindex="0" aria-pressed="false">
+        <div class="box-label">Når de betaler</div>
+        <div class="box-amount">0 kr</div>
+        <div class="box-sub"></div>
+      </div>
+      <div class="box" data-scenario="debit" role="button" tabindex="0" aria-pressed="false">
+        <div class="box-label">Etter jeg betaler</div>
+        <div class="box-amount">0 kr</div>
+        <div class="box-sub"></div>
+      </div>
+      <div class="box" data-scenario="all" role="button" tabindex="0" aria-pressed="false">
+        <div class="box-label">Alt oppgjort</div>
+        <div class="box-amount">0 kr</div>
+        <div class="box-sub"></div>
+      </div>
+    </div>
+    <p class="hint">Trykk for å velge · dobbelttrykk for detaljer</p>
+  </section>
+
+  <section class="ledger">
+    <div class="ledger-inner">
+      <div class="col-head">
+        <div class="col-title">Ønskeliste</div>
+        <div class="col-total" id="listTotal">0 kr</div>
+      </div>
+      <div class="caption" id="caption"></div>
+      <div id="wishList"></div>
+    </div>
+  </section>
+
+  <button class="fab" id="fabAdd">+ Ny ting</button>
+
+  <div class="overlay" id="overlay"></div>
+  <div class="sheet" id="sheet" role="dialog" aria-modal="true">
+    <div class="sheet-handle-zone" id="dragZone"><div class="sheet-handle"></div></div>
+    <div class="sheet-body" id="sheetBody"></div>
+  </div>
+
+  <script src="onskeliste.js"></script>
+</body>
+</html>
