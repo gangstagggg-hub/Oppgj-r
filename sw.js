@@ -3,7 +3,12 @@ const CORE_ASSETS = [
   './',
   './index.html',
   './style.css',
+  './loan.js',
   './app.js',
+  './detail.js',
+  './onskeliste.html',
+  './onskeliste.css',
+  './onskeliste.js',
   './manifest.json',
   './icons/icon-192.png',
   './icons/icon-512.png'

@@ -1,53 +1,81 @@
 # Oppgjør
 
 En liten PWA (Progressive Web App) for å holde styr på hvem som skylder deg,
-og hvem du skylder.
+hvem du skylder, og hva du ønsker å kjøpe.
 
 ## Filer
 
 ```
-index.html      hovedsiden
-style.css       all styling
-app.js          all logikk (lister, valuta, lagring, installasjon)
-manifest.json   PWA-manifest (navn, ikon, farger)
-sw.js           service worker for offline-bruk
-icons/          app-ikoner i ulike størrelser
+index.html        Gjeld-siden (hovedsiden)
+style.css         styling for Gjeld-siden
+app.js            logikk for Gjeld (lister, valuta, lagring, installasjon)
+loan.js           beregningsmotor: saldo, autotrekk, renter, nedbetalingsprognose
+detail.js         detaljark: betalingslogg og nedbetalingsberegner
+onskeliste.html   Ønskeliste-siden
+onskeliste.css    styling for Ønskeliste-siden
+onskeliste.js     logikk for Ønskeliste
+manifest.json     PWA-manifest (navn, ikon, farger)
+sw.js             service worker for offline-bruk
+icons/            app-ikoner i ulike størrelser
 ```
 
 ## Legge det ut på GitHub Pages
 
-1. Lag et nytt repo på GitHub og last opp alle filene i denne mappen
-   (behold mappestrukturen — `icons/`-mappen må ligge på samme nivå som `index.html`).
-2. Gå til repoets **Settings → Pages**.
+1. Lag et repo på GitHub og last opp alle filene i denne mappen.
+   Behold mappestrukturen: `icons/` må ligge på samme nivå som `index.html`.
+   GitHub Pages skiller mellom store og små bokstaver i filnavn.
+2. Gå til **Settings → Pages**.
 3. Under **Source**, velg branch `main` og mappe `/ (root)`. Lagre.
 4. Etter et minutt eller to er siden tilgjengelig på
    `https://<brukernavn>.github.io/<repo-navn>/`.
 
-**Viktig:** GitHub Pages serverer siden over HTTPS, som er et krav for at
-service worker og "installer app"-funksjonen skal virke. Å åpne filene
-lokalt med `file://` vil ikke fungere fullt ut.
+GitHub Pages serverer over HTTPS, som kreves for at service worker og
+«installer app» skal virke. `file://` fungerer ikke fullt ut.
+
+### Oppdatere en eksisterende versjon
+
+Last opp de nye filene over de gamle. **Bytt også versjonsnummeret i `sw.js`**
+(`CACHE_NAME`, f.eks. `oppgjor-v2` til `oppgjor-v3`). Uten det kan telefonen
+fortsette å vise den gamle versjonen fra cachen.
 
 ## Installere som app på telefonen
 
-- **Android (Chrome):** åpne lenken, og en bunnlinje med "Installer" dukker
-  opp automatisk. Trykk på den.
-- **iPhone (Safari):** åpne lenken, trykk på Del-ikonet, og velg
-  "Legg til på Hjem-skjerm". Safari støtter ikke automatiske installasjons-
-  meldinger, så appen viser i stedet en påminnelse med denne beskjeden.
+- **Android (Chrome):** åpne lenken, og en bunnlinje med «Installer» dukker
+  opp. Trykk på den.
+- **iPhone (Safari):** trykk på Del-ikonet og velg «Legg til på Hjem-skjerm».
+
+## Bruk
+
+- **Gjeld:** `+ Ny gjeld` legger til en post. Dobbelttrykk på en person for å
+  legge til flere beløp og se alle enkeltbeløpene. Sveip mot venstre for å slette.
+- **Ønskeliste:** `+ Ny ting` legger en ting nederst på listen. Dra i
+  håndtaket for å endre rekkefølge, sveip mot venstre for å slette. Hver ting
+  viser samlet beløp for den selv og alt over den.
+- Fyll inn «Jeg har nå» for å se hva pengene rekker til. Trykk på en av de fire
+  boksene for å velge kombinasjon, og dobbelttrykk for detaljer.
+  Kombinasjonene bruker tallene fra Gjeld-siden.
+
+## Autotrekk, renter og nedbetaling
+
+- Under **Avdrag og renter** i skjemaet velger du rente (ingen, årlig eller løpende)
+  og eventuelt autotrekk per måned.
+- **Årlig rente** legges til ved midnatt nyttårsaften, med full årsrente på saldoen da.
+- **Løpende rente** er årsrenten delt på 365, lagt til saldoen hver dag.
+- Dobbelttrykk på en person og trykk på en post for å åpne den. **Betalinger** viser
+  loggen. Trykk på en betaling for å endre eller slette den. En slettet
+  autobetaling kommer ikke tilbake.
+- **Nedbetaling** er en interaktiv beregner: flytt på betaling og rente og se
+  hvor lenge det varer og hva renten koster. «Bruk som plan» lagrer den.
 
 ## Data og lagring
 
-Alt du legger inn (personer, beløp, valuta) lagres i nettleserens
-`localStorage` på enheten. Det betyr:
+Alt lagres i nettleserens `localStorage` på enheten:
 
-- Dataen overlever at du lukker appen, slår av telefonen, eller mister nett.
-- Dataen er lokal for den enheten/nettleseren — den synkroniseres ikke
-  mellom telefon og PC.
-- Sletter du nettleserdata for siden (eller avinstallerer appen), forsvinner
-  også dataen.
+- `oppgjor:v1` er gjeld og valuta
+- `oppgjor:wishlist:v1` er ønskelisten og «Jeg har nå»
 
-## Videre arbeid (forslag)
+Dataen overlever at du lukker appen eller mister nett, men synkroniseres ikke
+mellom enheter. Sletter du nettleserdata for siden, forsvinner den.
 
-- Muligheter for å slette eller markere en post som gjort opp.
-- Synkronisering mellom enheter (krever en backend/database).
-- Redigere en eksisterende post.
+`localStorage` deles av alle apper på samme `github.io`-adresse. Nøklene
+over er egne, så de kolliderer ikke med andre apper.
