@@ -6,7 +6,6 @@
 <title>Oppgjør</title>
 <meta name="description" content="Hold styr på hvem som skylder deg, og hvem du skylder.">
 
-<link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#132019">
 <link rel="icon" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/icon-180.png">
@@ -14,8 +13,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Oppgjør">
 
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="fonts.css">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -233,7 +231,7 @@
         <input type="text" id="fName" placeholder="F.eks. Kari Nordmann">
       </div>
 
-      <div class="field amount-field">
+      <div class="field amount-field main-amount">
         <label for="fAmount">Beløp</label>
         <input type="text" id="fAmount" placeholder="0" inputmode="decimal">
         <span class="amount-suffix" id="amountSuffix">kr</span>

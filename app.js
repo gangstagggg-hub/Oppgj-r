@@ -274,7 +274,6 @@ function attachEntryInteraction(wrap, group){
   const deleteBtn = wrap.querySelector('.entry-delete-btn');
 
   let startX = 0, startY = 0, baseX = 0, dragging = false, isTap = true;
-  let lastTapTime = 0;
 
   row.addEventListener('pointerdown', (e) => {
     if(openEntryWrap && openEntryWrap !== wrap) closeOpenEntry();
@@ -324,23 +323,12 @@ function attachEntryInteraction(wrap, group){
       return;
     }
 
-    const now = Date.now();
-    if(now - lastTapTime < 450){
-      lastTapTime = 0;
-      openSheetForGroup(group);
-    } else {
-      lastTapTime = now;
-    }
+    /* ett trykk: åpne loggen (én post) eller arket med alle postene (flere) */
+    if(group.items.length === 1 && typeof Detail !== 'undefined') Detail.open(group.items[0].id);
+    else openSheetForGroup(group);
   }
 
   row.addEventListener('pointerup', finishDrag);
-  /* ekstra sikring: nettleserens egen dobbeltklikk-hendelse over hele raden */
-  row.addEventListener('dblclick', (e) => {
-    if(row.dataset.open === 'true') return;
-    e.preventDefault();
-    lastTapTime = 0;
-    openSheetForGroup(group);
-  });
   row.addEventListener('pointercancel', finishDrag);
 
   deleteBtn.addEventListener('click', () => {
@@ -787,13 +775,13 @@ if(isIOS() && !isStandalone() && !wasDismissed()){
   setTimeout(showInstallBanner, 1200);
 }
 
-/* ---------- service worker (offline-støtte) ---------- */
-
-if('serviceWorker' in navigator){
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('sw.js').catch(() => { /* offline-støtte er valgfritt */ });
-  });
-}
+window.onAndroidBack = function(){
+  if(typeof Detail !== 'undefined' && Detail.isOpen()){ Detail.close(); return true; }
+  if(sheet.classList.contains('open')){ closeSheet(); return true; }
+  if(currencyMenu.classList.contains('open')){ toggleCurrencyMenu(false); return true; }
+  if(openEntryWrap){ closeOpenEntry(); return true; }
+  return false;
+};
 
 /* ---------- init ---------- */
 document.addEventListener('visibilitychange', () => {

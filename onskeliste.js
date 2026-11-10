@@ -554,5 +554,12 @@ function openCombos(id){
   });
 }
 
+/* ---------- tilbake-knappen i Android-appen ---------- */
+
+window.onAndroidBack = function(){
+  if(sheet.classList.contains('open')){ closeSheet(); return true; }
+  if(openRow){ closeOpenRow(); return true; }
+  return false;
+};
 /* ---------- init ---------- */
 render();
