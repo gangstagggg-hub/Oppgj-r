@@ -68,6 +68,35 @@ function saveState(s){
 }
 
 let state = loadState();
+state.entries.forEach(e => Loan.normalize(e));
+
+/* saldo for en post = utledet fra betalinger og renter */
+function bal(e){ return Loan.currentBalance(Loan.normalize(e)); }
+
+/* legger inn forfalte autotrekk; returnerer true hvis noe ble endret */
+function runAutoPayments(){
+  let changed = false;
+  state.entries.forEach(e => { if(Loan.catchUp(e)) changed = true; });
+  if(changed) saveState(state);
+  return changed;
+}
+runAutoPayments();
+
+/* ---------- toast med angre ---------- */
+let toastTimer = null, toastUndoFn = null;
+function showToast(text, undoFn){
+  const t = document.getElementById('toast');
+  document.getElementById('toastText').textContent = text;
+  toastUndoFn = undoFn || null;
+  document.getElementById('toastUndo').style.display = undoFn ? '' : 'none';
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(hideToast, 6000);
+}
+function hideToast(){ document.getElementById('toast').classList.remove('show'); toastUndoFn = null; }
+document.getElementById('toastUndo').addEventListener('click', () => {
+  const fn = toastUndoFn; hideToast(); if(fn) fn();
+});
 
 /* ---------- hjelpefunksjoner ---------- */
 
@@ -105,6 +134,16 @@ function relativeTime(timestamp){
   return months + ' måneder siden';
 }
 
+function round2(x){ return Math.round(x * 100) / 100; }
+
+function loanChips(e){
+  const c = [];
+  if(e.rateType === 'yearly') c.push(String(e.rate).replace('.', ',') + ' % årlig');
+  if(e.rateType === 'daily') c.push(String(e.rate).replace('.', ',') + ' % løpende');
+  if(e.auto && e.auto.enabled) c.push(formatAmount(e.auto.amount, state.currency) + '/mnd');
+  return c;
+}
+
 function escapeHtml(str){
   const div = document.createElement('div');
   div.textContent = str;
@@ -121,7 +160,7 @@ function groupByName(entries){
       map.set(key, { key, name: e.name.trim(), mode: e.mode, total: 0, items: [] });
     }
     const g = map.get(key);
-    g.total += e.amount;
+    g.total += bal(e);
     g.items.push(e);
   });
   const groups = Array.from(map.values());
@@ -134,8 +173,8 @@ function render(){
   const creditEntries = state.entries.filter(e => e.mode === 'credit');
   const debitEntries  = state.entries.filter(e => e.mode === 'debit');
 
-  const creditTotal = creditEntries.reduce((sum, e) => sum + e.amount, 0);
-  const debitTotal  = debitEntries.reduce((sum, e) => sum + e.amount, 0);
+  const creditTotal = round2(creditEntries.reduce((sum, e) => sum + bal(e), 0));
+  const debitTotal  = round2(debitEntries.reduce((sum, e) => sum + bal(e), 0));
   const net = creditTotal - debitTotal;
 
   renderGroupList('creditList', groupByName(creditEntries), 'credit', 'Ingen skylder deg noe akkurat nå.');
@@ -187,15 +226,21 @@ function renderGroupList(containerId, groups, mode, emptyText){
     wrap.className = 'entry-wrap';
     wrap.dataset.key = group.key;
 
-    const metaText = group.items.length > 1
-      ? `${group.items.length} poster · sist ${relativeTime(group.items[0].createdAt)}`
-      : `${escapeHtml(group.items[0].desc || 'Gjeld')} · ${relativeTime(group.items[0].createdAt)}`;
+    const paidOff = group.total <= 0;
+    let metaText;
+    if(group.items.length > 1){
+      metaText = `${group.items.length} poster · sist ${relativeTime(group.items[0].createdAt)}`;
+    } else {
+      const chips = loanChips(group.items[0]);
+      metaText = escapeHtml(group.items[0].desc || 'Gjeld') + ' · ' + (chips.length ? escapeHtml(chips.join(' · ')) : relativeTime(group.items[0].createdAt));
+    }
+    if(paidOff) metaText = 'Nedbetalt';
 
     wrap.innerHTML = `
       <div class="entry-delete-bg">
         <button class="entry-delete-btn" type="button">Slett</button>
       </div>
-      <div class="entry ${mode}" data-open="false">
+      <div class="entry ${mode}${paidOff ? ' paid' : ''}" data-open="false">
         <div class="entry-avatar">${escapeHtml(initialsFromName(group.name))}</div>
         <div class="entry-body">
           <div class="entry-name">${escapeHtml(group.name)}</div>
@@ -289,13 +334,21 @@ function attachEntryInteraction(wrap, group){
   }
 
   row.addEventListener('pointerup', finishDrag);
+  row.addEventListener('dblclick', (e) => {
+    if(row.dataset.open === 'true') return;
+    e.preventDefault();
+    lastTapTime = 0;
+    openSheetForGroup(group);
+  });
   row.addEventListener('pointercancel', finishDrag);
 
   deleteBtn.addEventListener('click', () => {
-    state.entries = state.entries.filter(e => !(e.name.trim().toLowerCase() === group.key && e.mode === group.mode));
+    const removed = state.entries.filter(e => e.name.trim().toLowerCase() === group.key && e.mode === group.mode);
+    state.entries = state.entries.filter(e => !removed.includes(e));
     saveState(state);
     if(openEntryWrap === wrap) openEntryWrap = null;
     render();
+    showToast(group.name + ' er slettet', () => { state.entries.push(...removed); saveState(state); render(); });
   });
 }
 
@@ -317,29 +370,40 @@ function renderBreakdown(key, entryMode){
     return;
   }
 
-  const rows = items.map(item => `
+  const rows = items.map(item => {
+    const b = bal(item);
+    const chips = loanChips(item);
+    const sub = relativeTime(item.createdAt) + (chips.length ? ' · ' + chips.join(' · ') : '');
+    const amt = b <= 0 ? 'Nedbetalt' : formatAmount(b, state.currency) + (Math.abs(b - item.amount) > 0.005 ? `<small>av ${formatAmount(item.amount, state.currency)}</small>` : '');
+    return `
     <div class="breakdown-row" data-id="${item.id}">
+      <button type="button" class="breakdown-open" data-id="${item.id}" aria-label="Åpne detaljer">
       <div class="breakdown-info">
         <div class="breakdown-desc">${escapeHtml(item.desc || 'Gjeld')}</div>
-        <div class="breakdown-date">${relativeTime(item.createdAt)}</div>
+        <div class="breakdown-date">${escapeHtml(sub)}</div>
       </div>
-      <div class="breakdown-amount">${formatAmount(item.amount, state.currency)}</div>
+      <div class="breakdown-amount">${amt}</div><span class="breakdown-chev" aria-hidden="true">›</span></button>
       <button class="breakdown-delete" type="button" data-id="${item.id}" aria-label="Slett post">×</button>
-    </div>
-  `).join('');
+    </div>`;
+  }).join('');
 
   container.innerHTML = `
-    <div class="breakdown-label">${entryMode === 'credit' ? 'Skylder deg' : 'Du skylder'} — tidligere beløp</div>
+    <div class="breakdown-label">${entryMode === 'credit' ? 'Skylder deg' : 'Du skylder'} — trykk på en post for logg og nedbetaling</div>
     <div class="breakdown-list">${rows}</div>
   `;
 
   container.querySelectorAll('.breakdown-delete').forEach(btn => {
     btn.addEventListener('click', () => {
       const id = btn.getAttribute('data-id');
+      const removed = state.entries.find(e => e.id === id);
       state.entries = state.entries.filter(e => e.id !== id);
       saveState(state);
       render();
+      showToast('Posten er slettet', () => { state.entries.push(removed); saveState(state); render(); });
     });
+  });
+  container.querySelectorAll('.breakdown-open').forEach(btn => {
+    btn.addEventListener('click', () => typeof Detail !== 'undefined' && Detail.open(btn.getAttribute('data-id')));
   });
 }
 
@@ -352,6 +416,7 @@ function openSheetForGroup(group){
   fName.readOnly = true;
   fAmount.value = '';
   fDesc.value = '';
+  resetAdvanced();
 
   setMode(group.mode);
   toggleLocked = true;
@@ -449,7 +514,54 @@ function closeSheet(){
   sheet.style.transform = '';
   unlockSheet();
 }
+const advToggle = document.getElementById('advToggle');
+const adv = document.getElementById('adv');
+const advSum = document.getElementById('advSum');
+const fRate = document.getElementById('fRate');
+const fAuto = document.getElementById('fAuto');
+const fAutoAmt = document.getElementById('fAutoAmt');
+const fAutoDom = document.getElementById('fAutoDom');
+let rateType = 'none';
+
+const RATE_HINTS = {
+  none: 'Ingen rente legges på.',
+  yearly: 'Renten legges til saldoen ved midnatt nyttårsaften, og rentes videre neste år.',
+  daily: 'Renten løper hele tiden: årsrenten deles på 365 og legges til hver dag.'
+};
+function setRateType(v){
+  rateType = v;
+  document.querySelectorAll('#fRateType button').forEach(b => b.classList.toggle('on', b.dataset.v === v));
+  document.getElementById('rateHint').textContent = RATE_HINTS[v];
+  document.getElementById('rateField').hidden = v === 'none';
+  updateAdvSummary();
+}
+function updateAdvSummary(){
+  const parts = [];
+  if(rateType !== 'none') parts.push((fRate.value || '0') + ' %');
+  if(fAuto.checked) parts.push((fAutoAmt.value || '0') + '/mnd');
+  advSum.textContent = parts.length ? parts.join(' · ') : 'Av';
+}
+function setAdvOpen(open){
+  adv.hidden = !open;
+  advToggle.setAttribute('aria-expanded', String(open));
+  advToggle.classList.toggle('open', open);
+}
+advToggle.addEventListener('click', () => setAdvOpen(adv.hidden));
+document.querySelectorAll('#fRateType button').forEach(b => b.addEventListener('click', () => setRateType(b.dataset.v)));
+fAuto.addEventListener('change', () => { document.getElementById('autoFields').hidden = !fAuto.checked; updateAdvSummary(); });
+[fRate, fAutoAmt].forEach(el => el.addEventListener('input', () => {
+  el.value = el.value.replace(/\./g, ',').replace(/[^0-9,]/g, '').replace(/,(?=.*,)/g, '');
+  updateAdvSummary();
+}));
+fAutoDom.addEventListener('input', () => { fAutoDom.value = fAutoDom.value.replace(/\D/g, '').slice(0, 2); });
+function resetAdvanced(){
+  fRate.value = ''; fAuto.checked = false; fAutoAmt.value = ''; fAutoDom.value = '1';
+  document.getElementById('autoFields').hidden = true;
+  setRateType('none'); setAdvOpen(false);
+}
+
 function resetForm(){
+  resetAdvanced();
   fName.value = '';
   fAmount.value = '';
   fDesc.value = '';
@@ -576,16 +688,30 @@ sheetSubmit.addEventListener('click', () => {
     return;
   }
 
-  state.entries.push({
+  const entry = {
     id: cryptoId(),
     mode: entryMode,
     name,
     desc: fDesc.value.trim(),
     amount,
     createdAt: Date.now()
-  });
+  };
+  Loan.normalize(entry);
+  const rate = parseAmountInput(fRate.value);
+  if(rateType !== 'none' && rate > 0) Loan.setRate(entry, rateType, rate);
+  const autoAmt = parseAmountInput(fAutoAmt.value);
+  if(fAuto.checked && autoAmt > 0){
+    entry.auto = {
+      enabled: true, amount: autoAmt,
+      dom: Math.min(28, Math.max(1, parseInt(fAutoDom.value, 10) || 1)),
+      from: Loan.todayDay(), cursor: null
+    };
+    Loan.catchUp(entry);
+  }
+  state.entries.push(entry);
   saveState(state);
   render();
+  resetAdvanced();
 
   if(sheetLockedKey){
     /* behold arket åpent slik at flere beløp kan legges til fortløpende */
@@ -660,9 +786,8 @@ if(isIOS() && !isStandalone() && !wasDismissed()){
   setTimeout(showInstallBanner, 1200);
 }
 
-/* ---------- tilbake-knappen i Android-appen ---------- */
-
 window.onAndroidBack = function(){
+  if(typeof Detail !== 'undefined' && Detail.isOpen()){ Detail.close(); return true; }
   if(sheet.classList.contains('open')){ closeSheet(); return true; }
   if(currencyMenu.classList.contains('open')){ toggleCurrencyMenu(false); return true; }
   if(openEntryWrap){ closeOpenEntry(); return true; }
@@ -670,4 +795,7 @@ window.onAndroidBack = function(){
 };
 
 /* ---------- init ---------- */
+document.addEventListener('visibilitychange', () => {
+  if(document.visibilityState === 'visible'){ runAutoPayments(); render(); }
+});
 render();

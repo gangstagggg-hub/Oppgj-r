@@ -77,8 +77,9 @@ function debtTotals(){
       if(s && Array.isArray(s.entries)){
         let c = 0, d = 0;
         s.entries.forEach(e => {
-          if(e.mode === 'credit') c += Number(e.amount) || 0;
-          else if(e.mode === 'debit') d += Number(e.amount) || 0;
+          const bal = (window.Loan ? Loan.currentBalance(Loan.normalize(e)) : Number(e.amount)) || 0;
+          if(e.mode === 'credit') c += bal;
+          else if(e.mode === 'debit') d += bal;
         });
         return { credit:round2(c), debit:round2(d), currency: s.currency || 'NOK' };
       }
@@ -560,6 +561,5 @@ window.onAndroidBack = function(){
   if(openRow){ closeOpenRow(); return true; }
   return false;
 };
-
 /* ---------- init ---------- */
 render();
