@@ -775,13 +775,13 @@ if(isIOS() && !isStandalone() && !wasDismissed()){
   setTimeout(showInstallBanner, 1200);
 }
 
-window.onAndroidBack = function(){
-  if(typeof Detail !== 'undefined' && Detail.isOpen()){ Detail.close(); return true; }
-  if(sheet.classList.contains('open')){ closeSheet(); return true; }
-  if(currencyMenu.classList.contains('open')){ toggleCurrencyMenu(false); return true; }
-  if(openEntryWrap){ closeOpenEntry(); return true; }
-  return false;
-};
+/* ---------- service worker (offline-støtte) ---------- */
+
+if('serviceWorker' in navigator){
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch(() => { /* offline-støtte er valgfritt */ });
+  });
+}
 
 /* ---------- init ---------- */
 document.addEventListener('visibilitychange', () => {

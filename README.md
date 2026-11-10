@@ -61,7 +61,7 @@ fortsette å vise den gamle versjonen fra cachen.
   og eventuelt autotrekk per måned.
 - **Årlig rente** legges til ved midnatt nyttårsaften, med full årsrente på saldoen da.
 - **Løpende rente** er årsrenten delt på 365, lagt til saldoen hver dag.
-- Dobbelttrykk på en person og trykk på en post for å åpne den. **Betalinger** viser
+- Trykk én gang på en person for å åpne posten (har personen flere poster, åpnes en liste du trykker videre fra). **Betalinger** viser
   loggen. Trykk på en betaling for å endre eller slette den. En slettet
   autobetaling kommer ikke tilbake.
 - **Nedbetaling** er en interaktiv beregner: flytt på betaling og rente og se
