@@ -73,6 +73,7 @@ const Detail = (function(){
         <div class="d-bal">${b <= 0 ? 'Nedbetalt' : money(b)}</div>
         <div class="d-sub">${e.mode === 'credit' ? 'skylder deg' : 'du skylder'}${Math.abs(b - e.amount) > 0.005 ? ' · opprinnelig ' + money(e.amount) : ''}</div>
         <div class="d-chips">${chips.map(c => `<span>${escapeHtml(c)}</span>`).join('')}</div>
+        <button type="button" class="d-more" id="dMore">+ Legg til mer på ${escapeHtml(e.name)}</button>
       </div>
       <div class="d-stats">
         <div><b>${money(sim.paid)}</b><span>betalt</span></div>
@@ -83,6 +84,12 @@ const Detail = (function(){
         <button type="button" data-t="plan" class="${tab === 'plan' ? 'on' : ''}">Nedbetaling</button>
       </div>
       <div id="dPane"></div>`;
+    bodyEl.querySelector('#dMore').addEventListener('click', () => {
+      const key = e.name.trim().toLowerCase();
+      const g = groupByName(state.entries).find(x => x.key === key && x.mode === e.mode);
+      close();
+      if(g) openSheetForGroup(g);
+    });
     bodyEl.querySelectorAll('#dTabs button').forEach(btn => btn.addEventListener('click', () => {
       tab = btn.dataset.t; editing = null; draw();
     }));
