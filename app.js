@@ -134,6 +134,41 @@ function relativeTime(timestamp){
   return months + ' måneder siden';
 }
 
+/* ---------- ferdig betalt: når alt du skylder er nedbetalt med lagrede planer ---------- */
+function renderPayoff(){
+  const card = document.getElementById('payoffCard');
+  const open = state.entries.filter(e => e.mode === 'debit' && bal(e) > 0);
+  if(!state.entries.some(e => e.mode === 'debit')){ card.hidden = true; return; }
+  card.hidden = false;
+  const main = document.getElementById('payoffMain');
+  const sub = document.getElementById('payoffSub');
+  if(!open.length){
+    main.textContent = 'Gjeldfri 🎉';
+    sub.textContent = 'Alt du skylder er nedbetalt.';
+    return;
+  }
+  let endDay = 0, interest = 0, noPlan = 0, tooLow = 0, planned = 0;
+  open.forEach(e => {
+    if(!(e.auto && e.auto.enabled && e.auto.amount > 0)){ noPlan++; return; }
+    const p = Loan.project({ balance: bal(e), type: e.rateType, rate: e.rateType === 'none' ? 0 : e.rate, payment: e.auto.amount, dom: e.auto.dom });
+    if(p.never){ tooLow++; return; }
+    planned++;
+    endDay = Math.max(endDay, p.endDay);
+    interest += p.interest;
+  });
+  if(!planned){
+    main.textContent = 'Ingen plan ennå';
+    sub.textContent = tooLow ? 'Betalingen dekker ikke renten. Øk autotrekket.' : 'Legg inn autotrekk på en post for å se når den er ferdig.';
+    return;
+  }
+  const months = Math.max(1, Loan.monthIndex(endDay) - Loan.monthIndex(Loan.todayDay()));
+  main.textContent = Loan.dateOfDay(endDay).toLocaleDateString('nb-NO', { month: 'long', year: 'numeric', timeZone: 'UTC' });
+  const bits = [Loan.describeMonths(months) + ' igjen', formatAmount(round2(interest), state.currency) + ' i renter'];
+  if(noPlan) bits.push(noPlan + (noPlan === 1 ? ' post' : ' poster') + ' uten plan');
+  if(tooLow) bits.push(tooLow + (tooLow === 1 ? ' post' : ' poster') + ' vokser');
+  sub.textContent = bits.join(' · ');
+}
+
 function round2(x){ return Math.round(x * 100) / 100; }
 
 function loanChips(e){
@@ -170,6 +205,11 @@ function groupByName(entries){
 }
 
 function render(){
+  renderInner();
+  renderPayoff();
+  Loan.fitAll();
+}
+function renderInner(){
   const creditEntries = state.entries.filter(e => e.mode === 'credit');
   const debitEntries  = state.entries.filter(e => e.mode === 'debit');
 
@@ -273,7 +313,7 @@ function attachEntryInteraction(wrap, group){
   const row = wrap.querySelector('.entry');
   const deleteBtn = wrap.querySelector('.entry-delete-btn');
 
-  let startX = 0, startY = 0, baseX = 0, dragging = false, isTap = true;
+  let startX = 0, startY = 0, baseX = 0, dragging = false, suppressClick = false;
 
   row.addEventListener('pointerdown', (e) => {
     if(openEntryWrap && openEntryWrap !== wrap) closeOpenEntry();
@@ -281,9 +321,8 @@ function attachEntryInteraction(wrap, group){
     startY = e.clientY;
     baseX = row.dataset.open === 'true' ? SWIPE_OPEN_X : 0;
     dragging = false;
-    isTap = true;
+    suppressClick = false;
     row.style.transition = 'none';
-    row.setPointerCapture(e.pointerId);
   });
 
   row.addEventListener('pointermove', (e) => {
@@ -291,7 +330,8 @@ function attachEntryInteraction(wrap, group){
     const dy = e.clientY - startY;
     if(!dragging && Math.abs(dx) > 12 && Math.abs(dx) > Math.abs(dy) * 1.3){
       dragging = true;
-      isTap = false;
+      suppressClick = true;
+      try{ row.setPointerCapture(e.pointerId); }catch(_){}
     }
     if(dragging){
       const x = Math.min(0, Math.max(SWIPE_OPEN_X, baseX + dx));
@@ -316,17 +356,15 @@ function attachEntryInteraction(wrap, group){
       return;
     }
 
-    if(!isTap) return;
+  }
 
-    if(row.dataset.open === 'true'){
-      closeOpenEntry();
-      return;
-    }
-
-    /* ett trykk: åpne loggen (én post) eller arket med alle postene (flere) */
+  /* vanlig kort trykk = click. Nettleseren skiller selv mellom trykk, scrolling og langt trykk */
+  row.addEventListener('click', () => {
+    if(suppressClick){ suppressClick = false; return; }
+    if(row.dataset.open === 'true'){ closeOpenEntry(); return; }
     if(group.items.length === 1 && typeof Detail !== 'undefined') Detail.open(group.items[0].id);
     else openSheetForGroup(group);
-  }
+  });
 
   row.addEventListener('pointerup', finishDrag);
   row.addEventListener('pointercancel', finishDrag);
@@ -775,13 +813,13 @@ if(isIOS() && !isStandalone() && !wasDismissed()){
   setTimeout(showInstallBanner, 1200);
 }
 
-/* ---------- service worker (offline-støtte) ---------- */
-
-if('serviceWorker' in navigator){
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('sw.js').catch(() => { /* offline-støtte er valgfritt */ });
-  });
-}
+window.onAndroidBack = function(){
+  if(typeof Detail !== 'undefined' && Detail.isOpen()){ Detail.close(); return true; }
+  if(sheet.classList.contains('open')){ closeSheet(); return true; }
+  if(currencyMenu.classList.contains('open')){ toggleCurrencyMenu(false); return true; }
+  if(openEntryWrap){ closeOpenEntry(); return true; }
+  return false;
+};
 
 /* ---------- init ---------- */
 document.addEventListener('visibilitychange', () => {
